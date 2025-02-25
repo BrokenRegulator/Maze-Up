@@ -1,0 +1,27 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Maze Up"
+config/tags=PackedStringArray("2d", "maze", "precedural")
+run/main_scene="res://Scenes/Root.tscn"
+config/features=PackedStringArray("4.3")
+config/icon="res://icon.png"
+
+[physics]
+
+common/enable_pause_aware_picking=true
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+environment/defaults/default_environment="res://default_env.tres"
+quality/reflections/texture_array_reflections=false
