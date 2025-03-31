@@ -1,0 +1,311 @@
+[gd_scene load_steps=7 format=3 uid="uid://cyipdo7j3wknt"]
+
+[ext_resource type="PackedScene" uid="uid://cpi7be6ixxmlf" path="res://Scenes/Player.tscn" id="1_s3hy2"]
+[ext_resource type="Texture2D" uid="uid://dkd1yvvxghso8" path="res://Assets/Roads.png" id="2_u8h4g"]
+
+[sub_resource type="GDScript" id="GDScript_hbfew"]
+resource_name = "Resolution"
+script/source = "extends Node2D
+
+#@export var boardCreator: Placing
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass
+#
+#extends NavigationLink2D
+#
+#
+#var time = Timer.new()
+## Called when the node enters the scene tree for the first time.
+#func _ready() -> void:
+	#time.start(1.0)
+	#if (time.timeout):
+		#enabled = false
+"
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_t8v3g"]
+texture = ExtResource("2_u8h4g")
+texture_region_size = Vector2i(8, 8)
+0:0/0 = 0
+0:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-4.25, 1.25, 4.125, 1.125, 4, 4, -4.375, 4.125)
+0:0/0/physics_layer_0/polygon_1/points = PackedVector2Array(-4, -4.125, -1, -4, -1.25, -0.875, -4.25, -0.75)
+0:0/0/physics_layer_0/polygon_2/points = PackedVector2Array(-2.875, -4.125, 3.875, -3.75, 4, -1, -2.375, -1)
+0:1/0 = 0
+0:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(1, 0.875, 4.125, 1.25, 4, 4, 1.125, 3.875)
+0:1/0/physics_layer_0/polygon_1/points = PackedVector2Array(-4, -4, -1, -4, -1, 4, -3.75, 4.125)
+0:1/0/physics_layer_0/polygon_2/points = PackedVector2Array(0.875, -3.875, 3.875, -3.75, 4.125, -1, 0.875, -1.125)
+1:1/0 = 0
+1:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-4.25, 1.25, 4.125, 1.125, 4, 4, -4.375, 4.125)
+1:1/0/physics_layer_0/polygon_1/points = PackedVector2Array(-4, -4.125, -1, -4, -1.25, -0.875, -4.25, -0.75)
+1:1/0/physics_layer_0/polygon_2/points = PackedVector2Array(0.875, -3.875, 3.875, -3.75, 4, -1, 1.25, -1.125)
+1:0/0 = 0
+1:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-3.875, 1.125, -0.75, 1.125, -1, 3.875, -3.875, 4)
+1:0/0/physics_layer_0/polygon_1/points = PackedVector2Array(1.125, 4.125, 4, 4, 4, 0.875, 1, 1.125)
+1:0/0/physics_layer_0/polygon_2/points = PackedVector2Array(-4, -4, 3.875, -3.875, 3.875, -1, -3.875, -0.875)
+2:0/0 = 0
+2:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-4.25, 1.25, -1.25, 1.125, -1.5, 4, -4.375, 4.125)
+2:0/0/physics_layer_0/polygon_1/points = PackedVector2Array(-4, -4.125, -1, -4, -1.25, -0.875, -4.25, -0.75)
+2:0/0/physics_layer_0/polygon_2/points = PackedVector2Array(1.125, -4.125, 3.875, -3.75, 4.125, 3.75, 1, 3.875)
+2:1/0 = 0
+2:1/0/physics_layer_0/polygon_0/points = PackedVector2Array(-4, 1.0625, -1, 1.1875, -1, 4, -4, 4)
+2:1/0/physics_layer_0/polygon_1/points = PackedVector2Array(1, 1.0625, 4, 1.125, 4, 4, 1.0625, 4)
+2:1/0/physics_layer_0/polygon_2/points = PackedVector2Array(1.0625, -1.125, 4, -1.125, 4, -4, 1.06066, -4)
+2:1/0/physics_layer_0/polygon_3/points = PackedVector2Array(-1.10485, -1.14905, -4, -1.14905, -4, -4, -1.0625, -4)
+0:2/0 = 0
+0:2/0/physics_layer_0/polygon_0/points = PackedVector2Array(-4, -4, -1.1875, -4, -1.125, 4, -4, 4)
+0:2/0/physics_layer_0/polygon_1/points = PackedVector2Array(1.0625, -4, 4, -4, 4, 4, 1.1875, 4)
+1:2/0 = 0
+1:2/0/physics_layer_0/polygon_0/points = PackedVector2Array(-4, -4, 4, -4, 4, 4, -4, 4)
+
+[sub_resource type="TileSet" id="TileSet_0v8yp"]
+tile_size = Vector2i(8, 8)
+physics_layer_0/collision_layer = 1
+sources/0 = SubResource("TileSetAtlasSource_t8v3g")
+
+[sub_resource type="GDScript" id="GDScript_7vv1a"]
+script/source = "extends TileMapLayer
+
+const X_BOUND = 14 #Amount of block spaces on the X-axis
+const Y_BOUND = 7 #Amount of block spaces on the Y-axis
+
+#BLOCK TYPES
+const BLOCK_WALL = Vector2i(1,2)
+
+var mapArr : Array = [] #2D array representing the map
+var solutionArr : Array = [] #1D array of coords
+var branchArr : Array = [] #1D array of coords for branches
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	CreateBoard()
+
+
+func getRandomTile():
+	return Vector2i(randi() % 3, randi() % 3)
+
+#func createMap():
+	#for x in 14:
+		#for y in 8:
+			#set_cell(Vector2i(x,y), 0, Vector2i(2,1))
+			
+#get all used coordinates
+func getCoordArr():
+	var coordArr = solutionArr.duplicate() #1D array of all used coordinates
+	return coordArr
+	
+#Add new branch to coordArr
+func combine(bigArr : Array):
+	bigArr.append_array(branchArr)
+	return bigArr
+
+#Get top, bottom, left, and right tiles; relative to lastTile variable.
+func getAgacentTiles(coord, bigArr : Array):
+	#Set agacent tile vars
+	var top : Vector2i = Vector2i(coord.x, coord.y-1)
+	var bottom : Vector2i = Vector2i(coord.x, coord.y+1)
+	var left : Vector2i = Vector2i(coord.x-1, coord.y)
+	var right : Vector2i = Vector2i(coord.x+1, coord.y)
+	var setArr : Array = [top, bottom, right]
+	var eraseList : Array = []
+	
+	# If last column, force right
+	if coord.x == X_BOUND-1:
+		setArr = [right]
+		return setArr
+		
+	# Conditioning to keep out unwanted tiles
+	for i in setArr:
+		#Variable for changing between the setArr indexes.
+		var testCoord : Vector2i = i
+		#Boolean for erasing unwanted tiles.
+		var doErase : bool = false
+		#prevent from exceeding allowed X-values
+		if (testCoord.x < 0 or testCoord.x > X_BOUND):
+			doErase = true
+		#prevent from exceeding allowed Y-values
+		if (testCoord.y < 0 or testCoord.y > Y_BOUND):
+			doErase = true
+		# If at lower bound or upper, don't allow left
+		if ((testCoord.y == 0 or testCoord.y == Y_BOUND) && i==left):
+			doErase = true
+		# If at lower bound or upper, don't allow up
+		if ((testCoord.x == 0 or testCoord.x == X_BOUND) && i==top):
+			doErase = true
+		#Don't back trace or overcrowd a spot
+		for j in bigArr:
+			if (j == testCoord):
+				doErase = true
+				break
+			
+		# Stop from going same direction 3 times
+		#if (solutionArr.has(testCoord) == false):
+		#	doErase = StopThreeRow(setArrs()) # fix This
+			
+		if (doErase):
+			eraseList.append(i)
+	#Erase any tiles if needed
+	for i in eraseList:
+		setArr.pop_at(setArr.find(i))
+		
+	return setArr
+	
+# Randomly chooses from available tiles
+func Choose(options : Array, Arr : Array):
+	#Get the length of options
+	var pool : int = options.size()
+	#Randomly generate a number between 1 and the length of options
+	var choice : int = randi_range(0, pool-1)
+	Arr.append(options[choice])
+	#Place(options[choice])
+			
+	
+func Place(tiles: Array):
+	for i in tiles.size() - 1 :
+		var chosenTile : Vector2i
+		var nextTile = tiles[i+1]
+		var curTile = tiles[i]
+		var prevTile = tiles[i-1]
+		if curTile == Vector2i(0,0):
+			#first tile, check direction
+			if nextTile.x > 0:
+				chosenTile = Vector2i(0,0)
+			else:
+				chosenTile = Vector2i(0,2)
+				
+		if (nextTile.x == X_BOUND):
+			chosenTile = Vector2i(0,0)
+		else:
+			# now choose 3 way tiles
+			# first, look at whether last tile was on x or y axis
+			if (prevTile.x == curTile.x):
+				#moving vertically, predict next move
+				if (nextTile.x == curTile.x): 
+					chosenTile = Vector2i(0,2) # vertical line
+				elif (nextTile.x > curTile.x):
+					chosenTile = Vector2i(0,1) # exit right
+				else:
+					chosenTile = Vector2i(2,0) # exit left
+			else:
+				#check horizontal
+				if (nextTile.y == curTile.y):
+					chosenTile = Vector2i(0,0) # horizontal line
+				elif (nextTile.y < curTile.y):
+					chosenTile = Vector2i(1,1) # exit up
+				else: 
+					chosenTile = Vector2i(1,0) # exit down
+
+				#chosenTile = Vector2i(2,1) #using 4way temporarily
+				
+		#set_cell(curTile, 0, chosenTile)
+		mapArr[curTile.x][curTile.y] = chosenTile
+		
+	#fill rest with solid blocks
+	#for x in range(-1,15):
+		#for y in range(-1,9):
+			#var blankCoord : Vector2i = Vector2i(x,y)
+			#if (tiles.has(blankCoord) == false):
+				#set_cell(blankCoord, 0, Vector2i(1,2))
+
+func drawMap():
+	#Draw the value we stored in the mapArr during \"Place\" function
+	for x in range(X_BOUND):
+		for y in range(Y_BOUND):
+			set_cell(Vector2i(x,y), 0, mapArr[x][y])
+				
+func setNextTile():
+	#var count := 4
+	var lastTile : Vector2i = solutionArr[solutionArr.size() - 1]
+	print(lastTile)
+	#Get dictionary of all adjacent tiles
+	var setup : Array = getAgacentTiles(lastTile, solutionArr)
+	#var lastCoords : Array = setArrs()
+	Choose(setup, solutionArr)
+
+func initMapArray(xSize : int, ySize : int):
+	var matrix : Array
+	for x in range(xSize+1):
+		matrix.append([])
+		matrix[x]=[]		
+		for y in range(ySize+1):
+			matrix[x].append(BLOCK_WALL)
+	return matrix
+	
+	
+#Create the branch using existing functions
+func createBranch(solArr : Array):
+	#Reverse order of solutionArr
+	var backward = solArr.duplicate()
+	backward.reverse()
+	#Loop through 'backward'
+	for coord in backward.size() - 1:
+		#Branch coordinates
+		var branCoord = backward[coord] #Current banch Coord
+		var nextCoord = backward[coord + 1] #Tile after
+		var prevCoord = backward[coord - 1] #Tile after after
+		if (branCoord.x + 1 == prevCoord.x):
+			#Check for lower diagnal
+			if (nextCoord.y + 1 == prevCoord.y):
+				#Add coord to array
+				branchArr.append(Vector2i(nextCoord.x+1,nextCoord.y-1))
+				Choose(getAgacentTiles(branchArr, combine(getCoordArr())), branchArr)
+			#Check for upper diagnal
+			if (nextCoord.y - 1 == nextCoord):
+				branchArr.append(Vector2i(nextCoord.x+1,nextCoord.y+1))
+				Choose(getAgacentTiles(branchArr, combine(getCoordArr())), branchArr)
+		else:
+			pass
+			
+			
+func CreateBoard():
+	# init map array
+	mapArr = initMapArray(X_BOUND,Y_BOUND)
+	#Always start the solution at (0,0)
+	solutionArr.append(Vector2i(0,0))
+	
+	var notDone : bool = true
+	var safetyBreak : int = 50
+	while notDone:
+		setNextTile()
+		if solutionArr[solutionArr.size()-1].x == X_BOUND:
+			break
+		safetyBreak -= 1
+		if safetyBreak < 0:
+			break
+		
+	Place(solutionArr)
+	#var branchDone : bool = true
+	#
+	#while branchDone:
+		#if branchArr[branchArr.size() + 1].x == 14:
+			#break
+		#if branchArr[branchArr.size() + 1].y == 8 or branchArr[branchArr.size() + 1].y == 0:
+			#break
+	#createBranch(solutionArr)
+	#
+	#Draw It!
+	drawMap()
+"
+
+[node name="Root" type="Node2D"]
+script = SubResource("GDScript_hbfew")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+offset_top = -1.0
+offset_right = 40.0
+offset_bottom = 39.0
+
+[node name="Map_Camera" type="Camera2D" parent="HBoxContainer"]
+position = Vector2(576, 325)
+
+[node name="Tiles" type="TileMapLayer" parent="HBoxContainer/Map_Camera"]
+position = Vector2(-576, -325)
+scale = Vector2(10, 10)
+tile_set = SubResource("TileSet_0v8yp")
+script = SubResource("GDScript_7vv1a")
+
+[node name="CharacterBody2D" parent="HBoxContainer" instance=ExtResource("1_s3hy2")]
+position = Vector2(40, 40)
+motion_mode = 1
+slide_on_ceiling = false
+floor_stop_on_slope = false

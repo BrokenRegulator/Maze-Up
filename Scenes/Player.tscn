@@ -1,0 +1,132 @@
+[gd_scene load_steps=15 format=3 uid="uid://cpi7be6ixxmlf"]
+
+[ext_resource type="Texture2D" uid="uid://wfboadj6jpxg" path="res://Assets/Ball.png" id="1_jjjve"]
+[ext_resource type="Texture2D" uid="uid://dv2x8nw605ret" path="res://Assets/BallStill.png" id="2_jd7vq"]
+
+[sub_resource type="GDScript" id="GDScript_thu2b"]
+resource_name = "Player_Move/Anim"
+script/source = "extends CharacterBody2D
+
+
+const SPEED = 200.0
+func _ready() -> void:
+	pass
+
+func _physics_process(delta: float) -> void:
+
+	velocity.x = SPEED * delta
+	velocity.y = SPEED * delta
+	
+
+	# Get the input direction and handle the movement/deceleration.
+	# As good practice, you should replace UI actions with custom gameplay actions.
+	var left_Right := Input.get_axis(\"ui_left\", \"ui_right\")
+	if left_Right:
+		velocity.x = left_Right * SPEED
+	else:
+		velocity.x = move_toward(velocity.x, 0, SPEED)
+		
+	var up_Down := Input.get_axis(\"ui_up\", \"ui_down\")
+	if up_Down:
+		velocity.y = up_Down * SPEED
+	else:
+		velocity.y = move_toward(velocity.y, 0, SPEED)
+	
+	move_and_slide()
+	
+"
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kvgvl"]
+atlas = ExtResource("1_jjjve")
+region = Rect2(8, 0, 8, 8)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6hot2"]
+atlas = ExtResource("1_jjjve")
+region = Rect2(0, 8, 8, 8)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pyn02"]
+atlas = ExtResource("1_jjjve")
+region = Rect2(8, 8, 8, 8)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_p4oec"]
+atlas = ExtResource("1_jjjve")
+region = Rect2(0, 16, 8, 8)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_wpar4"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kvgvl")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6hot2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pyn02")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_p4oec")
+}],
+"loop": true,
+"name": &"default",
+"speed": 8.0
+}]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_s2em3"]
+atlas = ExtResource("1_jjjve")
+region = Rect2(0, 8, 8, 8)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lqt4m"]
+atlas = ExtResource("1_jjjve")
+region = Rect2(8, 0, 8, 8)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5hbva"]
+atlas = ExtResource("1_jjjve")
+region = Rect2(0, 16, 8, 8)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gvgyy"]
+atlas = ExtResource("1_jjjve")
+region = Rect2(8, 8, 8, 8)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_2t7pt"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_s2em3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lqt4m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5hbva")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gvgyy")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_rc4j5"]
+radius = 4.12311
+
+[node name="CharacterBody2D" type="CharacterBody2D"]
+script = SubResource("GDScript_thu2b")
+
+[node name="Moving_Right" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -4)
+sprite_frames = SubResource("SpriteFrames_wpar4")
+frame_progress = 0.924391
+
+[node name="Moving_Left" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -4)
+sprite_frames = SubResource("SpriteFrames_2t7pt")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, -4)
+texture = ExtResource("2_jd7vq")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -4)
+shape = SubResource("CircleShape2D_rc4j5")
