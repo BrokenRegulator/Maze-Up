@@ -80,7 +80,7 @@ var branchArr : Array = [] #1D array of coords for branches
 func _ready() -> void:
 	CreateBoard()
 
-
+# Gets a random tile
 func getRandomTile():
 	return Vector2i(randi() % 3, randi() % 3)
 
