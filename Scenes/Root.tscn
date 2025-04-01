@@ -66,10 +66,16 @@ sources/0 = SubResource("TileSetAtlasSource_t8v3g")
 script/source = "extends TileMapLayer
 
 const X_BOUND = 14 #Amount of block spaces on the X-axis
-const Y_BOUND = 7 #Amount of block spaces on the Y-axis
+const Y_BOUND = 8 #Amount of block spaces on the Y-axis
 
 #BLOCK TYPES
 const BLOCK_WALL = Vector2i(1,2)
+const HORIZONTAL_LINE = Vector2i(0,0)
+const VERTICAL_LINE = Vector2i(0,2)
+const EXIT_RIGHT = Vector2i(0,1)
+const EXIT_LEFT = Vector2i(2,0)
+const EXIT_DOWN = Vector2i(1,0)
+const EXIT_UP = Vector2i(1,1)
 
 var mapArr : Array = [] #2D array representing the map
 var solutionArr : Array = [] #1D array of coords
@@ -166,15 +172,15 @@ func Place(tiles: Array):
 		var nextTile = tiles[i+1]
 		var curTile = tiles[i]
 		var prevTile = tiles[i-1]
-		if curTile == Vector2i(0,0):
+		if curTile == HORIZONTAL_LINE:
 			#first tile, check direction
 			if nextTile.x > 0:
-				chosenTile = Vector2i(0,0)
+				chosenTile = HORIZONTAL_LINE
 			else:
 				chosenTile = Vector2i(0,2)
 				
 		if (nextTile.x == X_BOUND):
-			chosenTile = Vector2i(0,0)
+			chosenTile = HORIZONTAL_LINE
 		else:
 			# now choose 3 way tiles
 			# first, look at whether last tile was on x or y axis
@@ -189,7 +195,7 @@ func Place(tiles: Array):
 			else:
 				#check horizontal
 				if (nextTile.y == curTile.y):
-					chosenTile = Vector2i(0,0) # horizontal line
+					chosenTile = HORIZONTAL_LINE # horizontal line
 				elif (nextTile.y < curTile.y):
 					chosenTile = Vector2i(1,1) # exit up
 				else: 
@@ -213,21 +219,21 @@ func drawMap():
 		for y in range(Y_BOUND):
 			set_cell(Vector2i(x,y), 0, mapArr[x][y])
 				
-func setNextTile():
+func setNextTile(Arr : Array):
 	#var count := 4
-	var lastTile : Vector2i = solutionArr[solutionArr.size() - 1]
+	var lastTile : Vector2i = Arr[Arr.size() - 1]
 	print(lastTile)
 	#Get dictionary of all adjacent tiles
-	var setup : Array = getAgacentTiles(lastTile, solutionArr)
+	var setup : Array = getAgacentTiles(lastTile, Arr)
 	#var lastCoords : Array = setArrs()
-	Choose(setup, solutionArr)
+	Choose(setup, Arr)
 
 func initMapArray(xSize : int, ySize : int):
 	var matrix : Array
-	for x in range(xSize+1):
+	for x in range(-1,xSize+2):
 		matrix.append([])
 		matrix[x]=[]		
-		for y in range(ySize+1):
+		for y in range(-1,ySize+2):
 			matrix[x].append(BLOCK_WALL)
 	return matrix
 	
@@ -266,7 +272,7 @@ func CreateBoard():
 	var notDone : bool = true
 	var safetyBreak : int = 50
 	while notDone:
-		setNextTile()
+		setNextTile(solutionArr)
 		if solutionArr[solutionArr.size()-1].x == X_BOUND:
 			break
 		safetyBreak -= 1
@@ -274,15 +280,18 @@ func CreateBoard():
 			break
 		
 	Place(solutionArr)
-	#var branchDone : bool = true
-	#
-	#while branchDone:
-		#if branchArr[branchArr.size() + 1].x == 14:
-			#break
-		#if branchArr[branchArr.size() + 1].y == 8 or branchArr[branchArr.size() + 1].y == 0:
-			#break
-	#createBranch(solutionArr)
-	#
+	var branchDone : bool = true
+	var safetyBreak2 : int = 5
+	while branchDone:
+		safetyBreak2 -= 1
+		if branchArr[branchArr.size() + 1].x == 14:
+			break
+		if branchArr[branchArr.size() + 1].y == 8 or branchArr[branchArr.size() + 1].y == 0:
+			break
+		if safetyBreak2 < 0:
+			break
+	createBranch(solutionArr)
+	
 	#Draw It!
 	drawMap()
 "
