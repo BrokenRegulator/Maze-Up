@@ -259,21 +259,21 @@ func createBranch(solArr : Array):
 		var nextCoord = backward[coord + 1] #Tile after
 		var prevCoord = backward[coord - 1] #Tile after after
 		#Check if it goes up, create branch to the right.
-		if mapArr[branCoord[coord].x][branCoord[coord].y] == EXIT_DOWN: 
-			branchArr.append(Vector2i(branCoord[coord].x + 1, branCoord[coord].y))
+		if mapArr[branCoord.x][branCoord.y] == EXIT_DOWN: 
+			branchArr.append(Vector2i(branCoord.x + 1, branCoord.y))
 			setNextTile(branchArr)
 		#Check if it goes down, create branch to the right.
-		if mapArr[branCoord[coord].x][branCoord[coord].y] == EXIT_UP:
-			branchArr.append(Vector2i(branCoord[coord].x + 1, branCoord[coord].y))
+		if mapArr[branCoord.x][branCoord.y] == EXIT_UP:
+			branchArr.append(Vector2i(branCoord.x + 1, branCoord.y))
 			setNextTile(branchArr)
 		#Check if it goes right.
-		if mapArr[branCoord[coord].x][branCoord[coord].y] == EXIT_RIGHT:
+		if mapArr[branCoord.x][branCoord.y] == EXIT_RIGHT:
 			#Check if previous tile enters from top or bottom.
 			if nextCoord.y + 1 == branCoord.y:
-				branchArr.append(Vector2i(branCoord[coord].x, branCoord[coord].y + 1))
+				branchArr.append(Vector2i(branCoord.x, branCoord.y + 1))
 				setNextTile(branchArr)
 			elif nextCoord.y - 1 == branCoord.y:
-				branchArr.append(Vector2i(branCoord[coord].x, branCoord[coord].y - 1))
+				branchArr.append(Vector2i(branCoord.x, branCoord.y - 1))
 				setNextTile(branchArr)
 		Place(branchArr)
 		branchArr.clear()
