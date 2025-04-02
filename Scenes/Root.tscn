@@ -79,7 +79,7 @@ const EXIT_UP = Vector2i(1,1)
 
 var mapArr : Array = [] #2D array representing the map
 var solutionArr : Array = [] #1D array of coords
-var branchArr : Array = [] #1D array of coords for branches
+
 
 
 # Called when the node enters the scene tree for the first time.
@@ -101,9 +101,11 @@ func getCoordArr():
 	return coordArr
 	
 #Add new branch to coordArr
-func combine(bigArr : Array):
-	bigArr.append_array(branchArr)
-	return bigArr
+#region Combine Function
+#func combine(bigArr : Array):
+	#bigArr.append_array(branchArr)
+	#return bigArr
+#endregion
 
 #Get top, bottom, left, and right tiles; relative to lastTile variable.
 func getAgacentTiles(coord, bigArr : Array):
@@ -177,7 +179,7 @@ func Place(tiles: Array):
 			if nextTile.x > 0:
 				chosenTile = HORIZONTAL_LINE
 			else:
-				chosenTile = Vector2i(0,2)
+				chosenTile = VERTICAL_LINE
 				
 		if (nextTile.x == X_BOUND):
 			chosenTile = HORIZONTAL_LINE
@@ -187,19 +189,19 @@ func Place(tiles: Array):
 			if (prevTile.x == curTile.x):
 				#moving vertically, predict next move
 				if (nextTile.x == curTile.x): 
-					chosenTile = Vector2i(0,2) # vertical line
+					chosenTile = VERTICAL_LINE # vertical line
 				elif (nextTile.x > curTile.x):
-					chosenTile = Vector2i(0,1) # exit right
+					chosenTile = EXIT_RIGHT # exit right
 				else:
-					chosenTile = Vector2i(2,0) # exit left
+					chosenTile = EXIT_LEFT # exit left
 			else:
 				#check horizontal
 				if (nextTile.y == curTile.y):
 					chosenTile = HORIZONTAL_LINE # horizontal line
 				elif (nextTile.y < curTile.y):
-					chosenTile = Vector2i(1,1) # exit up
+					chosenTile = EXIT_UP # exit up
 				else: 
-					chosenTile = Vector2i(1,0) # exit down
+					chosenTile = EXIT_DOWN # exit down
 
 				#chosenTile = Vector2i(2,1) #using 4way temporarily
 				
@@ -244,23 +246,26 @@ func createBranch(solArr : Array):
 	var backward = solArr.duplicate()
 	backward.reverse()
 	#Loop through 'backward'
-	for coord in backward.size() - 1:
+	for coord in backward:
 		#Branch coordinates
 		var branCoord = backward[coord] #Current banch Coord
 		var nextCoord = backward[coord + 1] #Tile after
 		var prevCoord = backward[coord - 1] #Tile after after
-		if (branCoord.x + 1 == prevCoord.x):
-			#Check for lower diagnal
-			if (nextCoord.y + 1 == prevCoord.y):
-				#Add coord to array
-				branchArr.append(Vector2i(nextCoord.x+1,nextCoord.y-1))
-				Choose(getAgacentTiles(branchArr, combine(getCoordArr())), branchArr)
-			#Check for upper diagnal
-			if (nextCoord.y - 1 == nextCoord):
-				branchArr.append(Vector2i(nextCoord.x+1,nextCoord.y+1))
-				Choose(getAgacentTiles(branchArr, combine(getCoordArr())), branchArr)
-		else:
-			pass
+		if mapArr[coord] == EXIT_DOWN
+#region Old Conditioning
+		#if (branCoord.x + 1 == prevCoord.x):
+			##Check for lower diagnal
+			#if (nextCoord.y + 1 == prevCoord.y):
+				##Add coord to array
+				#branchArr.append(Vector2i(nextCoord.x+1,nextCoord.y-1))
+				#Choose(getAgacentTiles(branchArr, combine(getCoordArr())), branchArr)
+			##Check for upper diagnal
+			#if (nextCoord.y - 1 == nextCoord):
+				#branchArr.append(Vector2i(nextCoord.x+1,nextCoord.y+1))
+				#Choose(getAgacentTiles(branchArr, combine(getCoordArr())), branchArr)
+		#else:
+			#pass
+#endregion
 			
 			
 func CreateBoard():
@@ -282,14 +287,14 @@ func CreateBoard():
 	Place(solutionArr)
 	var branchDone : bool = true
 	var safetyBreak2 : int = 5
-	while branchDone:
-		safetyBreak2 -= 1
-		if branchArr[branchArr.size() + 1].x == 14:
-			break
-		if branchArr[branchArr.size() + 1].y == 8 or branchArr[branchArr.size() + 1].y == 0:
-			break
-		if safetyBreak2 < 0:
-			break
+	#while branchDone:
+		#safetyBreak2 -= 1
+		#if branchArr[branchArr.size() + 1].x == 14:
+			#break
+		#if branchArr[branchArr.size() + 1].y == 8 or branchArr[branchArr.size() + 1].y == 0:
+			#break
+		#if safetyBreak2 < 0:
+			#break
 	createBranch(solutionArr)
 	
 	#Draw It!
