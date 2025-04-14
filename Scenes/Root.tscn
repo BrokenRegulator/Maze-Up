@@ -9,18 +9,6 @@ script/source = "extends Node2D
 
 #@export var boardCreator: Placing
 # Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass
-#
-#extends NavigationLink2D
-#
-#
-#var time = Timer.new()
-## Called when the node enters the scene tree for the first time.
-#func _ready() -> void:
-	#time.start(1.0)
-	#if (time.timeout):
-		#enabled = false
 "
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_t8v3g"]
@@ -66,7 +54,7 @@ sources/0 = SubResource("TileSetAtlasSource_t8v3g")
 script/source = "extends TileMapLayer
 
 #region Boundries
-const X_BOUND = 14 #Amount of block spaces on the X-axis
+var X_BOUND = 14 #Amount of block spaces on the X-axis
 const Y_BOUND = 8 #Amount of block spaces on the Y-axis
 #endregion
 
@@ -115,7 +103,7 @@ func getCoordArr():
 #endregion
 
 #Get top, bottom, left, and right tiles; relative to lastTile variable.
-func getAgacentTiles(coord, bigArr : Array):
+func getAgacentTiles(coord, bigArr : Array, branch : bool):
 	#Set agacent tile vars
 	var top : Vector2i = Vector2i(coord.x, coord.y-1)
 	var bottom : Vector2i = Vector2i(coord.x, coord.y+1)
@@ -127,6 +115,13 @@ func getAgacentTiles(coord, bigArr : Array):
 	# If last column, force right
 	if coord.x == X_BOUND-1:
 		setArr = [right]
+		return setArr
+	#Check for no exits
+	for i in setArr:
+		if mapArr[i.x][i.y] != BLOCK_WALL:
+			setArr.pop_at(setArr.find(i))
+			
+	if setArr.size() == 0:
 		return setArr
 		
 	# Conditioning to keep out unwanted tiles
@@ -145,14 +140,20 @@ func getAgacentTiles(coord, bigArr : Array):
 		if ((testCoord.y == 0 or testCoord.y == Y_BOUND) && i==left):
 			doErase = true
 		# If at lower bound or upper, don't allow up
-		if ((testCoord.x == 0 or testCoord.x == X_BOUND) && i==top):
+		if ((testCoord.x == 0) && i==top):
+			doErase = true
+		# If at lower bound or upper, don't allow down
+		if ((testCoord.x == X_BOUND) && i==bottom):
 			doErase = true
 		#Don't back trace or overcrowd a spot
 		for j in bigArr:
 			if (j == testCoord):
 				doErase = true
 				break
-			
+		
+		if mapArr[testCoord.x][testCoord.y] != BLOCK_WALL:
+			doErase = true
+			break
 		# Stop from going same direction 3 times
 		#if (solutionArr.has(testCoord) == false):
 		#	doErase = StopThreeRow(setArrs()) # fix This
@@ -171,7 +172,13 @@ func Choose(options : Array, Arr : Array):
 	var pool : int = options.size()
 	#Randomly generate a number between 1 and the length of options
 	var choice : int = randi_range(0, pool-1)
-	Arr.append(options[choice])
+	if options.size() > 0:
+		var pick = options[choice]
+		Arr.append(pick)
+	else:
+		pass
+	
+	
 	#Place(options[choice])
 			
 	
@@ -228,12 +235,12 @@ func drawMap():
 		for y in range(Y_BOUND):
 			set_cell(Vector2i(x,y), 0, mapArr[x][y])
 				
-func setNextTile(Arr : Array):
+func setNextTile(Arr : Array, branches : bool):
 	#var count := 4
 	var lastTile : Vector2i = Arr[Arr.size() - 1]
 	print(lastTile)
 	#Get dictionary of all adjacent tiles
-	var setup : Array = getAgacentTiles(lastTile, Arr)
+	var setup : Array = getAgacentTiles(lastTile, Arr, branches)
 	#var lastCoords : Array = setArrs()
 	Choose(setup, Arr)
 
@@ -246,53 +253,186 @@ func initMapArray(xSize : int, ySize : int):
 			matrix[x].append(BLOCK_WALL)
 	return matrix
 	
+func whileBranch(branchArr : Array):
+	var brakPoint : int = 5
+	var go : bool = true
+	while go:
+		if brakPoint <= 0:
+			break
+		setNextTile(branchArr, true)
+		brakPoint = brakPoint - 1
+		
 	
-#Create the branch using existing functions
-func createBranch(solArr : Array):
-	#Reverse order of solutionArr
-	var backward = solArr.duplicate()
-	backward.reverse()
-	#Loop through 'backward'
-	for coord in backward.size() - 1:
-		#Branch coordinates
-		var branCoord = backward[coord] #Current banch Coord
-		var nextCoord = backward[coord + 1] #Tile after
-		var prevCoord = backward[coord - 1] #Tile after after
-		#Check if it goes up, create branch to the right.
-		if mapArr[branCoord.x][branCoord.y] == EXIT_DOWN: 
-			branchArr.append(Vector2i(branCoord.x + 1, branCoord.y))
-			setNextTile(branchArr)
-		#Check if it goes down, create branch to the right.
-		if mapArr[branCoord.x][branCoord.y] == EXIT_UP:
-			branchArr.append(Vector2i(branCoord.x + 1, branCoord.y))
-			setNextTile(branchArr)
-		#Check if it goes right.
-		if mapArr[branCoord.x][branCoord.y] == EXIT_RIGHT:
-			#Check if previous tile enters from top or bottom.
-			if nextCoord.y + 1 == branCoord.y:
-				branchArr.append(Vector2i(branCoord.x, branCoord.y + 1))
-				setNextTile(branchArr)
-			elif nextCoord.y - 1 == branCoord.y:
-				branchArr.append(Vector2i(branCoord.x, branCoord.y - 1))
-				setNextTile(branchArr)
+func createBranch2(solArr : Array):
+	for i in solArr.size() - 1:
+		var Coord = solArr[i]
+		var left = Vector2i(Coord.x - 1,Coord.y)
+		var right = Vector2i(Coord.x + 1,Coord.y)
+		var up = Vector2i(Coord.x,Coord.y - 1)
+		var down = Vector2i(Coord.x,Coord.y + 1)
+		var mapCoord = mapArr[Coord.x][Coord.y]
+		#if current tile is EXIT_DOWN
+		if mapCoord == EXIT_DOWN:
+			#if right is empty
+			if mapArr[right.x][right.y] == BLOCK_WALL:
+				branchArr.append(right)
+				whileBranch(branchArr)
+				
+			#if down is empty
+			if down == BLOCK_WALL:
+				branchArr.append(down)
+				whileBranch(branchArr)
+				
+		#if current tile is EXIT_UP
+		elif mapCoord == EXIT_UP:
+			#if right is empty
+			if right == BLOCK_WALL:
+				branchArr.append(right)
+				whileBranch(branchArr)
+				
+			#if up is empty
+			if up == BLOCK_WALL:
+				branchArr.append(up)
+				whileBranch(branchArr)
+				
+		#if current tile is EXIT_RIGHT
+		elif mapCoord == EXIT_RIGHT:
+			#if right is empty
+			if right == BLOCK_WALL:
+				branchArr.append(right)
+				whileBranch(branchArr)
+				
+			#if up is empty
+			if up == BLOCK_WALL:
+				branchArr.append(up)
+				whileBranch(branchArr)
+				
+			#if down is empty
+			if down == BLOCK_WALL:
+				branchArr.append(down)
+				whileBranch(branchArr)
+			#Stop if no way out
 		Place(branchArr)
 		branchArr.clear()
-#region Old Conditioning
-		#if (branCoord.x + 1 == prevCoord.x):
-			##Check for lower diagnal
-			#if (nextCoord.y + 1 == prevCoord.y):
-				##Add coord to array
-				#branchArr.append(Vector2i(nextCoord.x+1,nextCoord.y-1))
-				#Choose(getAgacentTiles(branchArr, combine(getCoordArr())), branchArr)
-			##Check for upper diagnal
-			#if (nextCoord.y - 1 == nextCoord):
-				#branchArr.append(Vector2i(nextCoord.x+1,nextCoord.y+1))
-				#Choose(getAgacentTiles(branchArr, combine(getCoordArr())), branchArr)
-		#else:
-			#pass
+	drawMap()
+	
+#Create the branch using existing functions
+#region Create Branch 1
+#func createBranch(solArr : Array):
+	##Reverse order of solutionArr
+	#var backward = solArr.duplicate()
+	#backward.reverse()
+	##Loop through 'backward'
+	#for coord in range(0,backward.size() - 1):
+		##Branch coordinates
+		#var branCoord = backward[coord] #Current banch Coord
+		#var nextCoord = backward[coord + 1] #Tile after
+		#var prevCoord = backward[coord - 1] #Tile before
+		#var valueY = branCoord.y #X & Y of branCoord
+		#var valueX = branCoord.x
+		##Check if it goes up, create branch to the right.
+		#if mapArr[valueX][valueY] == EXIT_DOWN: 
+##region Exit Down Conditions
+			##if previous comes from right
+			#if prevCoord == Vector2i(valueX + 1,valueY):
+				##if next is below current tile
+				#if nextCoord == Vector2i(valueX,valueY + 1):
+					#branchArr.append(Vector2i(valueX - 1, valueY))
+					#setNextTile(branchArr)
+				##if next is right of the current tile
+				#elif nextCoord == [valueX + 1][valueY]:
+					#branchArr.append(Vector2i(valueX, valueY + 1))
+					#setNextTile(branchArr)
+			##if previous comes from left
+			#if prevCoord == Vector2i(valueX - 1,valueY):
+				##if next goes out the bottom.
+				#if nextCoord == Vector2i(valueX,valueY + 1):
+					#branchArr.append(Vector2i(valueX + 1, valueY))
+					#setNextTile(branchArr)
+			#
+##endregion
+		##Check if it goes down, create branch to the right.
+		#if mapArr[valueX][valueY] == EXIT_UP:
+##region Exit Up Conditions
+			##if previous was to the left of current tile.
+			#if prevCoord == Vector2i(valueX - 1,valueY):
+				##if next was on top of current tile
+				#if nextCoord == Vector2i(valueX,valueY + 1):
+					#branchArr.append(Vector2i(valueX + 1, valueY))
+					#setNextTile(branchArr)
+				##if next was to the right of curent tile
+				#elif nextCoord == Vector2i(valueX + 1,valueY):
+					#branchArr.append(Vector2i(valueX, valueY + 1))
+					#setNextTile(branchArr)
+			##if previous comes from top
+			#elif prevCoord == Vector2i(valueX,valueY - 1):
+				##if next was on top of current tile
+				#if nextCoord == Vector2i(valueX + 1,valueY):
+					#branchArr.append(Vector2i(valueX - 1, valueY))
+					#setNextTile(branchArr)
+##endregion
+		##Check if it goes right.
+		#if mapArr[valueX][valueY] == EXIT_RIGHT:
+			##Check if previous tile enters from top or bottom.
+##region Exit Right Conditions
+			##if previous was above current tile
+			#if prevCoord == Vector2i(valueX,valueY - 1):
+				##if next goes out the top
+				#if nextCoord == Vector2i(valueX,valueY + 1):
+					#branchArr.append(Vector2i(valueX + 1, valueY))
+					#setNextTile(branchArr)
+				##if next is right of the current tile.
+				#elif nextCoord == Vector2i(valueX + 1,valueY):
+					#branchArr.append(Vector2i(valueX, valueY + 1))
+					#setNextTile(branchArr)
+			##if previous is below current tile
+			#elif prevCoord == Vector2i(valueX,valueY + 1):
+				##if next goes out the top
+				#if nextCoord == Vector2i(valueX,valueY - 1):
+					#branchArr.append(Vector2i(valueX + 1, valueY))
+					#setNextTile(branchArr)
+				##if next is right of the current tile.
+				#elif nextCoord == Vector2i(valueX + 1,valueY):
+					#branchArr.append(Vector2i(valueX, valueY - 1))
+					#setNextTile(branchArr)
+##endregion
+		##Check for 'EXIT_LEFT' 
+		#if mapArr[valueX][valueY] == EXIT_LEFT:
+##region EXIT_LEFT Conditioning
+			##if previous coming in from left
+			#if prevCoord == Vector2i(valueX - 1, valueY):
+				##if next is below 
+				#if nextCoord == Vector2i(valueX, valueY + 1):
+					#branchArr.append(Vector2i(valueX, valueY - 1))
+					#setNextTile(branchArr)
+				##if next is above 
+				#if nextCoord == Vector2i(valueX, valueY - 1):
+					#branchArr.append(Vector2i(valueX, valueY + 1))
+					#setNextTile(branchArr)
+##endregion
+		## Check if next box 
+		#if nextCoord.y - 1 == valueY and valueY < 1:
+				#branchArr.append(Vector2i(valueX, valueY - 1))
+				#setNextTile(branchArr)
+		#Place(branchArr)
+		#branchArr.clear()
+##region Old Conditioning
+		##if (branCoord.x + 1 == prevCoord.x):
+			###Check for lower diagnal
+			##if (nextCoord.y + 1 == prevCoord.y):
+				###Add coord to array
+				##branchArr.append(Vector2i(nextCoord.x+1,nextCoord.y-1))
+				##Choose(getAgacentTiles(branchArr, combine(getCoordArr())), branchArr)
+			###Check for upper diagnal
+			##if (nextCoord.y - 1 == nextCoord):
+				##branchArr.append(Vector2i(nextCoord.x+1,nextCoord.y+1))
+				##Choose(getAgacentTiles(branchArr, combine(getCoordArr())), branchArr)
+		##else:
+			##pass
+##endregion
+			#
 #endregion
-			
-			
+			#
 func CreateBoard():
 	# init map array
 	mapArr = initMapArray(X_BOUND,Y_BOUND)
@@ -302,25 +442,18 @@ func CreateBoard():
 	var notDone : bool = true
 	var safetyBreak : int = 50
 	while notDone:
-		setNextTile(solutionArr)
+		setNextTile(solutionArr, false)
 		if solutionArr[solutionArr.size()-1].x == X_BOUND:
 			break
 		safetyBreak -= 1
 		if safetyBreak < 0:
 			break
-		
+	
 	Place(solutionArr)
-	var branchDone : bool = true
-	var safetyBreak2 : int = 5
-	#while branchDone:
-		#safetyBreak2 -= 1
-		#if branchArr[branchArr.size() + 1].x == 14:
-			#break
-		#if branchArr[branchArr.size() + 1].y == 8 or branchArr[branchArr.size() + 1].y == 0:
-			#break
-		#if safetyBreak2 < 0:
-			#break
-	createBranch(solutionArr)
+	drawMap()
+	#Now create branches
+	X_BOUND = 13
+	createBranch2(solutionArr)
 	
 	#Draw It!
 	drawMap()

@@ -13,12 +13,11 @@ config_version=5
 config/name="Maze Up"
 config/tags=PackedStringArray("2d", "maze", "precedural")
 run/main_scene="res://Scenes/Root.tscn"
-config/features=PackedStringArray("4.3")
+config/features=PackedStringArray("4.4")
 config/icon="res://icon.png"
 
 [display]
 
-window/size/mode=3
 window/stretch/mode="viewport"
 window/stretch/aspect="expand"
 
