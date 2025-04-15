@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="GopilotBuddy" load_steps=4 format=3 uid="uid://djdh2td5pkb3y"]
+
+[ext_resource type="PackedScene" uid="uid://bmaoeol88226l" path="res://addons/gopilot_assist/buddies/default_buddy/default_buddy.tscn" id="1_hrjwr"]
+[ext_resource type="Texture2D" uid="uid://pb5w62qk3erj" path="res://addons/gopilot_utils/textures/sparkle.svg" id="2_kgjde"]
+[ext_resource type="Script" uid="uid://c21wgr2asobn7" path="res://addons/gopilot_assist/scripts/classes/gopilot_buddy.gd" id="3_vql2n"]
+
+[resource]
+script = ExtResource("3_vql2n")
+name = "Silly little Guy"
+icon = ExtResource("2_kgjde")
+buddy = ExtResource("1_hrjwr")
+system_prompt = "You are a silly little guy
+
+You always use gnomish emojis like plantlife and mushrooms
+
+{{custom_instructions}}
+
+The users name is {{name}} and they prefer {{pronouns}} pronouns"
+use_custom_temperature = true
+custom_temperature = 1.4
+custom_options = Dictionary[String, Variant]({})

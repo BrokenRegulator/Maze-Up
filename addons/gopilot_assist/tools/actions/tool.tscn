@@ -1,0 +1,327 @@
+[gd_scene load_steps=11 format=3 uid="uid://d0fxargkq25ea"]
+
+[ext_resource type="Texture2D" uid="uid://dus7h1k42t8s0" path="res://addons/gopilot_assist/textures/ScriptCreate.png" id="1_mpfmq"]
+[ext_resource type="Texture2D" uid="uid://fa3w6nwyvt3i" path="res://addons/gopilot_assist/textures/FolderBrowse.png" id="2_lj5pf"]
+[ext_resource type="Script" uid="uid://u3vxvbpbjxp4" path="res://addons/gopilot_utils/classes/agent_handler.gd" id="2_tk1s7"]
+[ext_resource type="Texture2D" uid="uid://bnxhdmd5o8yjq" path="res://addons/gopilot_assist/textures/Node.png" id="3_2a77t"]
+[ext_resource type="Texture2D" uid="uid://dqle3u4wo0nux" path="res://addons/gopilot_assist/textures/List.png" id="4_vf6po"]
+[ext_resource type="Texture2D" uid="uid://cg24v4y3hj16h" path="res://addons/gopilot_utils/textures/ActionCopy.png" id="5_du4iq"]
+[ext_resource type="Texture2D" uid="uid://ppxlp2uijvly" path="res://addons/gopilot_assist/textures/ScriptExtend.png" id="6_y5x3q"]
+[ext_resource type="Texture2D" uid="uid://dbnimr2diptiw" path="res://addons/gopilot_assist/textures/check.png" id="7_vf6po"]
+[ext_resource type="Texture2D" uid="uid://v5omew4llxgs" path="res://addons/gopilot_utils/textures/Play.png" id="8_2a77t"]
+
+[sub_resource type="GDScript" id="GDScript_0jkyw"]
+script/source = "@tool
+extends GopilotTool
+
+@export var agents:Array[AgentHandler]
+
+@export var action_icons:Dictionary[String, Texture2D]
+
+@export var action_finished_icon:Texture2D
+
+var root:Node
+
+func _ready() -> void:
+	for agent in agents:
+		agent.task_finished.connect(func(finished_message:String):
+			add_action_block(agent.name + \" [FINAL_ANSWER]\\n\" + finished_message)
+			)
+		agent.thought_finished.connect(func(thought_message:String):
+			add_action_block(agent.name + \"[THOUGHT]\\n\" + thought_message)
+			)
+		agent.observation_received.connect(func(observation_message:String):
+			add_action_block(agent.name + \"[OBSERVATION]\\n\" + observation_message)
+			)
+		agent.action_finished.connect(func(action_message:String):
+			add_action_block(agent.name + \"[ACTION]\\n\" + action_message)
+			)
+
+var COMMON := preload(\"res://addons/gopilot_utils/scripts/common.gd\").new()
+
+
+func _run_tool(conv:Array[Dictionary]):
+	actions_taken = []
+	created_directories = []
+	root = EditorInterface.get_edited_scene_root().get_parent()
+	if !root:
+		add_tag_suffix(conv, \"Could not find the root node of the scene. Tell the user that they must have a scene open for this action to work\")
+	var scene_tree:String = COMMON.get_node_as_string(EditorInterface.get_edited_scene_root(), 10)
+	var file_tree:String = COMMON.directory_tree_to_string(\"res://\", 10, \"    \")
+	var agent_prompt:String = \"# File tree\\n\" + file_tree + \"\\n\\n# Scene tree\\n\" + scene_tree + \"\\n\\n# Task\\n\" + conv[-1][\"content\"].replace(\"@code_task\", \"\")
+	%TaskHandler.chat_requester = code_model
+	add_action_block(\"Performing code task...\")
+	%TaskHandler.clear_conversation()
+	print(\"agent prompt: \\n\", agent_prompt)
+	%TaskHandler.send_message(agent_prompt)
+	var final_answer:String = await %TaskHandler.task_finished
+	display_actions(actions_taken)
+	add_tag_suffix(conv, \"The @code_task tool returned this '\" + final_answer + \"'. Write exactly that message to the user\")
+
+
+func _cancel_tool():
+	%TaskHandler.stop()
+
+
+const FILE_EDIT_PROMPT:String = \"\"\"
+\"\"\"
+
+const ABORT:String = \"\"\"All actions in the array were aborted, they must be re-done\"\"\"
+
+var actions_taken:Array[Dictionary] = []
+
+var created_directories:PackedStringArray = []
+
+var created_nodes:PackedStringArray = []
+
+## Dummy function. Doesn't actually create or edit files yet
+func handle_action(action:String) -> String:
+	var parsing_json := JSON.new()
+	var json_err := parsing_json.parse(action)
+	if json_err != OK:
+		return \"JSON parsing error: '\" + parsing_json.get_error_message() + \"'. Make sure each action only takes up one line. All actions were aborted\"
+	var action_array:Array = parsing_json.get_data()
+	#var actions:Array = str_to_var(action)
+	var observations:PackedStringArray = []
+	var action_index:int = 0
+	var actions_in_block:Array[Dictionary] = []
+	for act in action_array:
+		var action_json:Dictionary = act
+		var action_name:String = action_json[\"action\"]
+		var args:Dictionary = action_json[\"args\"]
+		match action_name:
+			\"create_file\":
+				var file_path:String = args[\"file_path\"]
+				var parent_dir:String = \"res://\" + file_path.trim_prefix(\"res://\").trim_suffix(\"/\" + file_path.split(\"/\")[-1])
+				print(\"Parent dir: \", parent_dir)
+				if !DirAccess.dir_exists_absolute(parent_dir) and parent_dir not in created_directories:
+					return \"Parent directory '\" + parent_dir + \"' does not exist. All actions were aborted\"
+				if FileAccess.file_exists(file_path):
+					return \"File '\" + args[\"file_path\"].split(\"/\")[-1] + \"' already exists. \" + ABORT
+				actions_in_block.append(action_json)
+				observations.append(\"Created file '\" + args[\"file_path\"].split(\"/\")[-1] + \"'\")
+			\"create_dir\":
+				actions_in_block.append(action_json)
+				var directory:String = args[\"dir_path\"]
+				if directory.trim_prefix(\"res://\").split(\"/\", false).size() != 1:
+					var parent_dir:String = directory.trim_suffix(\"/\" + directory.split(\"/\")[-1])
+					if !DirAccess.dir_exists_absolute(parent_dir) and parent_dir not in created_directories:
+						return \"Parent directory '\" + parent_dir + \"' does not exist. \" + ABORT
+				observations.append(\"Created directory '\" + args[\"dir_path\"] + \"'\")
+				created_directories.append(directory)
+			\"add_node\":
+				print(\"Tries to add node: \", args[\"path\"])
+				actions_in_block.append(action_json)
+				var node_path:String = args[\"path\"]
+				var parent_path:String = node_path.trim_suffix(\"/\" + node_path.split(\"/\")[-1])
+				var parent_node:Node = EditorInterface.get_edited_scene_root().get_parent().get_node_or_null(parent_path)
+				if !parent_node and parent_path not in created_nodes:
+					return \"Parent node '\" + parent_path + \"' does not exist. \" + ABORT
+				created_nodes.append(node_path)
+				observations.append(\"Added node '\" + args[\"path\"].split(\"/\", false)[-1] + \"'\")
+			\"edit_properties\":
+				actions_in_block.append(action_json)
+				observations.append(\"Edited properties of '\" + args[\"path\"].split(\"/\", false)[-1] + \"'\")
+			\"add_sub_resource\":
+				actions_in_block.append(action_json)
+				if !ClassDB.class_exists(args[\"resource_type\"]):
+					return \"Resource type '\" + args[\"resource_type\"] + \"' does not exist. \" + ABORT
+				observations.append(\"Added \" + args[\"resource_type\"] + \" to '\" + args[\"path\"].split(\"/\", false)[-1] + \"'\")
+			\"assign_script\":
+				actions_in_block.append(action_json)
+				observations.append(\"Assigned script '\" + args[\"script_path\"].split(\"/\", false)[-1] + \"' to '\" + args[\"node_path\"].split(\"/\", false)[-1] + \"'\")
+			_:
+				return \"Action '\" + action_name + \"' does not exist. \" + ABORT
+		action_index += 1
+		
+	actions_taken.append_array(actions_in_block)
+	var response:String = \"\"
+	for observation in observations.size():
+		response += observations[observation]
+		if observation != observations.size() - 1:
+			response += \";\\n\"
+	return response
+
+
+func display_actions(actions:Array[Dictionary]):
+	var actions_block := %ActionsBlock.duplicate()
+	add_custom_control(actions_block)
+	var actions_con:Control = actions_block.get_node(\"Actions\")
+	var apply_selected_btn:Button = actions_block.get_node(\"ApplySelectedBtn\")
+	apply_selected_btn.pressed.connect(_apply_selected.bind(actions_block))
+	actions_block.show()
+	for action in actions:
+		var button_name:String = action[\"action\"]
+		var button_icon:Texture2D = action_icons[button_name]
+		var action_function:Callable
+		var action_sample := %ActionSample.duplicate()
+		action_sample.show()
+		var button:Button = action_sample.get_node(\"Button\")
+		actions_con.add_child(action_sample)
+		button.text = button_name
+		button.tooltip_text = JSON.stringify(action, \"\\t\", false, true)
+		button.icon = button_icon
+		match button_name:
+			\"create_file\":
+				action_function = func(action:Dictionary):
+					var file_path:String = action[\"args\"][\"file_path\"]
+					var file := FileAccess.open(file_path, FileAccess.WRITE_READ)
+					var open_error:Error = file.get_open_error()
+					var improved_script:String = COMMON.gdscript_3_to_4(action[\"args\"][\"content\"])
+					file.store_string(improved_script)
+					file.close()
+					EditorInterface.get_resource_filesystem().scan()
+			\"create_dir\":
+				action_function = func(action:Dictionary):
+					var err := DirAccess.make_dir_absolute(action[\"args\"][\"dir_path\"])
+					EditorInterface.get_resource_filesystem().scan()
+			\"add_node\":
+				action_function = func(action:Dictionary):
+					var node_path:String = action[\"args\"][\"path\"]
+					var node_type:String = action[\"args\"][\"type\"]
+					var node := ClassDB.instantiate(node_type)
+					node.name = node_path.split(\"/\", false)[-1]
+					var parent_path:String = node_path.trim_suffix(\"/\" + node.name)
+					var parent_node:Node = root.get_node(parent_path)
+					parent_node.add_child(node)
+					node.set_owner(get_tree().edited_scene_root)
+			\"edit_properties\":
+				action_function = func(action:Dictionary):
+					var node_path:String = action[\"args\"][\"path\"]
+					var node:Node = root.get_node(node_path)
+					var properties:Dictionary = action[\"args\"][\"properties\"]
+					for property in properties:
+						if properties[property] is String and node.get(property) is not String:
+							properties[property] = str_to_var(properties[property])
+						node.set(property, properties[property])
+			\"add_sub_resource\":
+				action_function = func(action:Dictionary):
+					var node_path:String = action[\"args\"][\"path\"]
+					var node:Node = root.get_node(node_path)
+					var resource_type:String = action[\"args\"][\"resource_type\"]
+					var property_name:String = action[\"args\"][\"property_name\"]
+					var resource:Resource = ClassDB.instantiate(resource_type)
+					node.set(property_name, resource)
+			\"assign_script\":
+				action_function = func(action:Dictionary):
+					var node_path:String = action[\"args\"][\"node_path\"]
+					var node:Node = root.get_node(node_path)
+					var script_path:String = action[\"args\"][\"script_path\"]
+					var script:GDScript = load(script_path)
+					node.set_script(script)
+		action_sample.get_node(\"Button\").pressed.connect(action_function.bind(action))
+
+
+func _apply_selected(actions_block:Control):
+	var actions_con:Control = actions_block.get_node(\"Actions\")
+	for action:Control in actions_con.get_children():
+		var button:Button = action.get_node(\"Button\")
+		var check:CheckBox = action.get_node(\"CheckBox\")
+		if !check.button_pressed:
+			continue
+		button.pressed.emit()
+		button.icon = action_finished_icon
+		button.disabled = true
+		check.button_pressed = false
+		check.disabled = true
+		await get_tree().create_timer(0.2).timeout
+"
+
+[node name="CodeTask" type="Node" node_paths=PackedStringArray("agents")]
+script = SubResource("GDScript_0jkyw")
+agents = [NodePath("TaskHandler")]
+action_icons = Dictionary[String, Texture2D]({
+"add_node": ExtResource("3_2a77t"),
+"add_sub_resource": ExtResource("5_du4iq"),
+"assign_script": ExtResource("6_y5x3q"),
+"create_dir": ExtResource("2_lj5pf"),
+"create_file": ExtResource("1_mpfmq"),
+"edit_properties": ExtResource("4_vf6po")
+})
+action_finished_icon = ExtResource("7_vf6po")
+tool_name = "scene_task"
+icon = ExtResource("1_mpfmq")
+trigger_prompts = PackedStringArray("@actions")
+trigger_color = Color(0, 1, 0.483333, 1)
+is_active = false
+metadata/_custom_type_script = "uid://bvhnuqgn6v06u"
+
+[node name="TaskHandler" type="Node" parent="." node_paths=PackedStringArray("action_handler")]
+unique_name_in_owner = true
+script = ExtResource("2_tk1s7")
+action_handler = NodePath("..")
+system_prompt_format = "You are an expert at planning actions to accomplish a given goal
+You first create a comprehensive plan under thought header and then run actions
+# Actions
+{{actions}}
+
+# Format
+You're in a loop \"Thought\" -> \"Action\" -> \"Observation\" -> \"Thought\" ...
+Start with \"# Thought\" header and write you planning for the task underneath
+Then perform actions under \"# Action\" header in array
+Then the \"# Observation\" header is inserted, providing action consequences
+Write another thought, action and observation and keep going until you finish the task
+For most goals, one action block should be enough. Only run another action block when there are errors
+Once you have finished the task, after the thought section, write a \"# Final Answer\" header with the final answer for the user telling them what you did
+
+# Response format
+Under \"# Thought\" header, you write short drafts about your reasoning
+Under \"# Action\" header you ALWAYS use this JSON format
+[{\"action\": \"name_of_the_action\", \"args\": {\"arg_name\": <arg value>, ...}}, ...]
+Always use every arg and make sure they are the correct type
+node paths are always like this \"RootNodeName/Path/To/The/Node\"
+Each array can only contain 6 actions MAX
+You ALWAYS end with a \"# Final Answer\"
+Your loop should look like this:
+\"\"\"
+# Thought
+<your drafts here, separated by newline>
+
+# Action
+[
+{\"action\": \"<action name>\", \"args\": {<your args here>}},
+...
+]
+
+# Observation
+<observation here>
+
+# Thought
+[...]
+\"\"\""
+actions = PackedStringArray("create_file: Creates new text file; Args: file_path (string, use the given directory structure to find a good place for the script e.g. \"res://scripts/my_example_script.gd\"), content (string); Outputs: Creation confirmation", "create_dir: Creates new directory; Args: dir_path (string, the path of the new directory e.g. \"res://scripts/player\"); Outputs: Creation confirmation", "add_node: Adds node into scene; Args: type (string, type of node e.g. \"CollisionShape2D\"), path (string, path to the node including the nodes name e.g. \"Node2D/PlayerCharacter/Collision\"); Outputs: Creation confirmation", "edit_properties: Edits property of node; Args: path (string, e.g. \"/Node2D/PlayerCharacter/Camera2D\"), properties (object, key value pairs of properties e.g. {\"current\": true, \"position\": \"Vector2(100.0, 0.0)\"} or {\"color\": \"Color(1.0, 1.0, 1.0)\"}); Outputs: Editing confirmation", "add_sub_resource: Adds a sub resource to a node; Args: path (string, path to node), resource_type (string, e.g. \"CircleShape2D\"), property_name: (string, name of the property to add the resource to); Outputs: Assignment confirmation", "assign_script: Assigns a given script to a node; Args: node_path (string), script_path (string); Outputs: Confirmation")
+example_conversation = PackedStringArray()
+metadata/_custom_type_script = "uid://u3vxvbpbjxp4"
+
+[node name="ActionsBlock" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_right = 217.0
+offset_bottom = 64.0
+
+[node name="ApplySelectedBtn" type="Button" parent="ActionsBlock"]
+layout_mode = 2
+tooltip_text = "Applies all checked actions one after the other
+Review all actions by hovering over them to make sure they do what you want"
+text = "Apply Selected"
+icon = ExtResource("8_2a77t")
+
+[node name="ActionSample" type="HBoxContainer" parent="ActionsBlock"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="Button" type="Button" parent="ActionsBlock/ActionSample"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Add Node"
+icon = ExtResource("3_2a77t")
+
+[node name="CheckBox" type="CheckBox" parent="ActionsBlock/ActionSample"]
+layout_mode = 2
+tooltip_text = "Uncheck this to ignore this action when pressing the \"Apply Selected\" button
+Useful when an action doesn't do what you want it to"
+button_pressed = true
+
+[node name="Actions" type="VBoxContainer" parent="ActionsBlock"]
+layout_mode = 2
