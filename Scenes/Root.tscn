@@ -136,14 +136,11 @@ func getAgacentTiles(coord, bigArr : Array, branch : bool):
 		#prevent from exceeding allowed Y-values
 		if (testCoord.y < 0 or testCoord.y > Y_BOUND):
 			doErase = true
-		# If at lower bound or upper, don't allow left
-		if ((testCoord.y == 0 or testCoord.y == Y_BOUND) && i==left):
+		# If at upper, don't allow up
+		if ((testCoord.y == 0) && i==top):
 			doErase = true
-		# If at lower bound or upper, don't allow up
-		if ((testCoord.x == 0) && i==top):
-			doErase = true
-		# If at lower bound or upper, don't allow down
-		if ((testCoord.x == X_BOUND) && i==bottom):
+		# If at lower bound , don't allow down
+		if ((testCoord.y == Y_BOUND) && i==bottom):
 			doErase = true
 		#Don't back trace or overcrowd a spot
 		for j in bigArr:
@@ -197,6 +194,8 @@ func Place(tiles: Array):
 				
 		if (nextTile.x == X_BOUND):
 			chosenTile = HORIZONTAL_LINE
+		elif (curTile.y == Y_BOUND):
+			chosenTile = BLOCK_WALL
 		else:
 			# now choose 3 way tiles
 			# first, look at whether last tile was on x or y axis
@@ -232,13 +231,13 @@ func Place(tiles: Array):
 func drawMap():
 	#Draw the value we stored in the mapArr during \"Place\" function
 	for x in range(X_BOUND):
-		for y in range(Y_BOUND):
+		for y in range(Y_BOUND+1):
 			set_cell(Vector2i(x,y), 0, mapArr[x][y])
 				
 func setNextTile(Arr : Array, branches : bool):
 	#var count := 4
 	var lastTile : Vector2i = Arr[Arr.size() - 1]
-	print(lastTile)
+	#print(lastTile)
 	#Get dictionary of all adjacent tiles
 	var setup : Array = getAgacentTiles(lastTile, Arr, branches)
 	#var lastCoords : Array = setArrs()
@@ -254,7 +253,7 @@ func initMapArray(xSize : int, ySize : int):
 	return matrix
 	
 func whileBranch(branchArr : Array):
-	var brakPoint : int = 5
+	var brakPoint : int = 1
 	var go : bool = true
 	while go:
 		if brakPoint <= 0:
@@ -263,9 +262,13 @@ func whileBranch(branchArr : Array):
 		brakPoint = brakPoint - 1
 		
 	
-func createBranch2(solArr : Array):
-	for i in solArr.size() - 1:
-		var Coord = solArr[i]
+func createBranch2(Arr : Array, branch : bool):
+	var Coord
+	if Arr.size() == 0:
+		return 
+		
+	for i in Arr.size() - 1:
+		Coord = Arr[i]
 		var left = Vector2i(Coord.x - 1,Coord.y)
 		var right = Vector2i(Coord.x + 1,Coord.y)
 		var up = Vector2i(Coord.x,Coord.y - 1)
@@ -312,9 +315,9 @@ func createBranch2(solArr : Array):
 				branchArr.append(down)
 				whileBranch(branchArr)
 			#Stop if no way out
-		Place(branchArr)
-		branchArr.clear()
+	Place(branchArr)
 	drawMap()
+		
 	
 #Create the branch using existing functions
 #region Create Branch 1
@@ -449,11 +452,14 @@ func CreateBoard():
 		if safetyBreak < 0:
 			break
 	
+	for i in solutionArr:
+		print(i)
+	
 	Place(solutionArr)
 	drawMap()
 	#Now create branches
 	X_BOUND = 13
-	createBranch2(solutionArr)
+	#createBranch2(solutionArr, false)
 	
 	#Draw It!
 	drawMap()
